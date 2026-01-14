@@ -14,8 +14,8 @@ class MessageBrokerServiceProvider extends ServiceProvider
     public function register()
     {
         $this->mergeConfigFrom(
-            __DIR__ . '/config/custom-data.php',
-            'custom-data'
+            __DIR__ . '/config/message-broker.php',
+            'message-broker'
         );
     }
 
