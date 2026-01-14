@@ -1,5 +1,21 @@
 {
     "name": "kakaprodo/message-broker",
+    "description": "A php and laravel package that simplifies rabbitmq, kafka api integration.",
+    "type": "library",
+    "keywords": [
+        "laravel message broker",
+        "message broker",
+        "php rabbitmq",
+        "php kafka",
+        "laravel kafka",
+        "laravel rabbitmq",
+        "kakaprodo"
+    ],
+    "require": {
+        "php": ">=8.0",
+        "laravel/framework": ">=8.0",
+        "kakaprodo/custom-data": ">=2.3.3 || dev-develop"
+    },
     "autoload": {
         "psr-4": {
             "Kakaprodo\\MessageBroker\\": "src/"
@@ -11,5 +27,13 @@
             "email": "promskakaprodo45@gmail.com"
         }
     ],
-    "require": {}
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Kakaprodo\\MessageBroker\\MessageBrokerServiceProvider"
+            ]
+        }
+    },
+    "minimum-stability": "dev",
+    "license": "MIT"
 }
