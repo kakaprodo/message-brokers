@@ -1,0 +1,15 @@
+{
+    "name": "kakaprodo/message-broker",
+    "autoload": {
+        "psr-4": {
+            "Kakaprodo\\MessageBroker\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "promesse",
+            "email": "promskakaprodo45@gmail.com"
+        }
+    ],
+    "require": {}
+}
