@@ -24,10 +24,10 @@ class RabbitMqServiceCore
     public function __construct($vHost = "/")
     {
         $this->connection = new AMQPStreamConnection(
-            host: config('services.rabbitmq.host'),
-            port: config('services.rabbitmq.port'),
-            user: config('services.rabbitmq.username'),
-            password: config('services.rabbitmq.password'),
+            host: config('message-broker.rabbitmq.host'),
+            port: config('message-broker.rabbitmq.port'),
+            user: config('message-broker.rabbitmq.username'),
+            password: config('message-broker.rabbitmq.password'),
             vhost: $vHost,
             // heartbeat: config('services.rabbitmq.heartbeat', 10),
         );

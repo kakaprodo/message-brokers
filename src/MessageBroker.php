@@ -2,4 +2,13 @@
 
 namespace Kakaprodo\MessageBroker;
 
-class MessageBroker {}
+use Kakaprodo\MessageBroker\Brokers\RabbitMq\Routing\RouteBuilder;
+
+class MessageBroker
+{
+
+    public static function listenToMessages()
+    {
+        RouteBuilder::resolveRoutes();
+    }
+}

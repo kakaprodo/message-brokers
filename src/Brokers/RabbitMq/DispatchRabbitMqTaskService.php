@@ -17,13 +17,16 @@ class DispatchRabbitMqTaskService extends CustomActionBuilder
 
     public function handle(DispatchRabbitMqTaskData $data)
     {
-        if (!$data->routing_key) return;
-        $this->message = $data->message;
-
-        $handler =  [
-            RabbitConstantService::TRANSFER_WALLET_OWNERSHIP => fn() => $this->transferWarehouseOnwershipListerner(),
-        ][$data->routing_key] ?? null;
-
-        return Util::callFunction($handler);
+        if ($data->handlerIsCustomDataAction()) {
+            return ($data->handler)::process($data->getMessagePayload());
+        } elseif ($data->handlerHasHandleMethod()) {
+            return app()->call([$data->handler, 'handle'], [
+                'payload' => $data->getMessagePayload()
+            ]);
+        } elseif (Util::isCallable($data->handler)) {
+            return app()->call($data->handler, [
+                'payload' => $data->getMessagePayload()
+            ]);
+        }
     }
 }

@@ -23,44 +23,39 @@ class RabbitMqService
     /**
      * @var string
      */
-    protected $routeName;
+    protected $exchangeName;
 
     /**
-     * Routes names
+     * Supported exchange types
      */
-    const ROUTE_BROADCAST_ANY = "broadcast-any";
-    const ROUTE_DIRECT_ANY = "direct-any";
+    const EXCHANGE_TYPE_DIRECT = "direct";
+    const EXCHANGE_TYPE_FANOUT = "fanout";
+    const EXCHANGE_TYPE_TOPIC = "topic";
+    const EXCHANGE_TYPE_HEADERS = "headers";
 
-    /**
-     * Queue names
-     */
-    const DIRECT_QUEUE = 'direct_queue';
-    const FANOUT_QUEUE = 'fanout_queue';
-
-    public function __construct($routeName, $vHost = null)
+    public function __construct()
     {
-        $vHost = $vHost ?? config('services.rabbitmq.vhost');
+        $vHost = config('message-broker.rabbitmq.vhost', "/");
 
         $this->mqCoreService = RabbitMqServiceCore::connect($vHost);
 
         $this->channel =  $this->mqCoreService->channel();
-        $this->routeName = $routeName;
     }
 
     /**
      * init the rabbitmq connection with the route and vhost
      */
-    public static function init($routeName, $vHost = null): RabbitMqService
+    public static function init(): RabbitMqService
     {
-        return new self($routeName, $vHost);
+        return new self();
     }
 
     /**
      * set a new route name
      */
-    public function setRouteName($routeName)
+    public function setExchangeName($exchangeName)
     {
-        $this->routeName = $routeName;
+        $this->exchangeName = $exchangeName;
 
         return $this;
     }
@@ -70,22 +65,25 @@ class RabbitMqService
      */
     public function generateQueueName($exchangeType)
     {
-        return $this->routeName . '.' . $exchangeType . '.' . (Str::slug(config('app.name')));
+        $appendToQueue = config('message-broker.append_to_queue_names');
+        $appendToQueue = $appendToQueue ? '.' . $appendToQueue : '';
+
+        return $this->exchangeName . '.' . $exchangeType . '.' . (Str::slug(config('app.name'))) . $appendToQueue;
     }
 
     /**
      * a method that will publish message using the fanout 
      * exchange type
      */
-    public function sendBroadcast($message, $routingKey = '')
+    public function sendBroadcast(string $message)
     {
-        $this->channel->exchange_declare($this->routeName, 'fanout', false, true, false);
+        $this->channel->exchange_declare($this->exchangeName, 'fanout', false, true, false);
 
-        $this->mqCoreService->send($this->channel, function (AMQPChannel $channel) use ($message, $routingKey) {
+        $this->mqCoreService->send($this->channel, function (AMQPChannel $channel) use ($message) {
 
             $message =  $this->mqCoreService->formatMessage($message);
 
-            $channel->basic_publish($message, $this->routeName, $routingKey);
+            $channel->basic_publish($message, $this->exchangeName);
         });
 
         return $this;
@@ -94,15 +92,15 @@ class RabbitMqService
     /**
      * Publish messages to given routing keys only
      */
-    public function sendDirect($message, $routingKey = '')
+    public function sendDirect(string $message, $routingKey = '')
     {
-        $this->channel->exchange_declare($this->routeName, 'direct', false, true, false);
+        $this->channel->exchange_declare($this->exchangeName, 'direct', false, true, false);
 
         $this->mqCoreService->send($this->channel, function (AMQPChannel $channel) use ($message, $routingKey) {
 
             $message =  $this->mqCoreService->formatMessage($message);
 
-            $channel->basic_publish($message, $this->routeName, $routingKey);
+            $channel->basic_publish($message, $this->exchangeName, $routingKey);
         });
 
         return $this;
@@ -129,13 +127,15 @@ class RabbitMqService
 
     /**
      * listen to messages broadcasted
+     * 
+     * @param Closure|CustomActionBuilder|null $handler 
      */
-    public function listenToBroadcast($routingKeys = [], ?callable $callMeBack = null)
+    public function listenToBroadcast($handler = null)
     {
-        $this->channel->exchange_declare($this->routeName, 'fanout', false, true, false);
+        $this->channel->exchange_declare($this->exchangeName, 'fanout', false, true, false);
 
         [$queueName] = $this->channel->queue_declare(
-            $this->generateQueueName(self::FANOUT_QUEUE),
+            $this->generateQueueName('broadcast'),
             false,
             true,
             false,
@@ -144,11 +144,7 @@ class RabbitMqService
             $this->mqCoreService->useQuorumQueue()
         );
 
-        $routingKeys = $routingKeys == [] ? [''] : $routingKeys;
-
-        foreach ($routingKeys as $routingKey) {
-            $this->channel->queue_bind($queueName, $this->routeName, $routingKey);
-        }
+        $this->channel->queue_bind($queueName, $this->exchangeName);
 
         $this->channel->basic_consume(
             $queueName,
@@ -157,11 +153,12 @@ class RabbitMqService
             false,
             false,
             false,
-            function (AMQPMessage $msg) use ($callMeBack) {
+            function (AMQPMessage $msg) use ($handler) {
+                if ($handler) {
+                    $this->dispatchTasks($msg->getBody(), $handler);
+                }
 
-                Util::callFunction($callMeBack, $msg->getBody(), $msg->getRoutingKey());
-
-                $this->dispatchTasks($msg->getBody(), $msg->getRoutingKey(), $msg);
+                $msg->ack();
             }
         );
 
@@ -172,55 +169,59 @@ class RabbitMqService
     /**
      * listen to messages published to certain routing keys only
      */
-    public function listenToDirect($routingKeys = [], ?callable $callMeBack = null)
+    public function listenToDirect($routingKeysMappedWithHandler = [])
     {
-        $this->channel->exchange_declare($this->routeName, 'direct', false, true, false);
+        $this->channel->exchange_declare($this->exchangeName, 'direct', false, true, false);
 
-        [$queueName] = $this->channel->queue_declare(
-            $this->generateQueueName(self::DIRECT_QUEUE),
-            false,
-            true,
-            false,
-            false,
-            false,
-            $this->mqCoreService->useQuorumQueue()
-        );
 
-        $routingKeys = $routingKeys == [] ? [''] : $routingKeys;
 
-        foreach ($routingKeys as $routingKey) {
-            $this->channel->queue_bind($queueName, $this->routeName, $routingKey);
+        foreach ($routingKeysMappedWithHandler as $routingKey => $handler) {
+            [$queueName] = $this->channel->queue_declare(
+                $this->generateQueueName('direct.' . $routingKey),
+                false,
+                true,
+                false,
+                false,
+                false,
+                $this->mqCoreService->useQuorumQueue()
+            );
+
+            $this->channel->queue_bind($queueName, $this->exchangeName, $routingKey);
+
+            $this->channel->basic_consume(
+                $queueName,
+                '',
+                false,
+                false,
+                false,
+                false,
+                function (AMQPMessage $msg) use ($handler) {
+
+                    $this->dispatchTasks($msg->getBody(), $handler, $msg->getRoutingKey());
+
+                    $msg->ack();
+                }
+            );
         }
-
-        $this->channel->basic_consume(
-            $queueName,
-            '',
-            false,
-            false,
-            false,
-            false,
-            function (AMQPMessage $msg) use ($callMeBack) {
-
-                Util::callFunction($callMeBack, $msg->getBody(), $msg->getRoutingKey());
-                $this->dispatchTasks($msg->getBody(), $msg->getRoutingKey(), $msg);
-            }
-        );
 
         return $this;
     }
 
     /**
      * Decide how the message will be consumed based on the routingKey
+     * 
+     * @param string $message
+     * @param Closure|CustomActionBuilder|null $handler 
+     * @param string|null $routingKey
      */
-    protected function dispatchTasks($message, $routingKey = null, ?AMQPMessage $msg = null)
+    protected function dispatchTasks($message, $handler = null, $routingKey = null)
     {
         try {
             DispatchRabbitMqTaskService::process([
                 'message' => $message,
-                'routing_key' => $routingKey
+                'routing_key' => $routingKey,
+                'handler' => $handler
             ]);
-
-            $msg->ack();
         } catch (\Throwable $th) {
             Log::info($th->getMessage());
             Log::info(json_encode([
