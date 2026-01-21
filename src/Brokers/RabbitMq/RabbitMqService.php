@@ -242,8 +242,9 @@ class RabbitMqService
                 'sent_message' => $msg->getBody(),
                 'routing_key' => $msg->getRoutingKey(),
                 "exchange" =>  $msg->getExchange(),
+                "event" => "When executing the handler"
             ];
-            Util::catch($th);
+            Util::catch($th, $info);
 
             dump($info);
 

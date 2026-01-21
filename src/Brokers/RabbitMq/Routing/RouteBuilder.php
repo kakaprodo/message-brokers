@@ -55,7 +55,13 @@ class RouteBuilder
             });
         } catch (\Throwable $th) {
             $command->error('Rabbitmq listener: ' . $th->getMessage());
-            Util::catch($th);
+            Util::catch($th, [
+                "event" => "When binding routes to queue",
+                'error_message' => null,
+                'sent_message' => null,
+                'routing_key' => null,
+                "exchange" => null,
+            ]);
         }
     }
 }

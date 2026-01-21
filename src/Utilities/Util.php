@@ -30,7 +30,7 @@ class Util
     /**
      * catch any error then send it its handler class
      */
-    public static function catch(Throwable $th)
+    public static function catch(Throwable $th, array $info)
     {
         $errorHandlerClass = config('message-broker.error_listner_class');
 
@@ -40,6 +40,6 @@ class Util
 
         if (!method_exists($errorHandlerClass, 'handle')) return;
 
-        app($errorHandlerClass)->handle($th);
+        app($errorHandlerClass)->handle($th, $info);
     }
 }
