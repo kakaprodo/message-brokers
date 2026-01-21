@@ -3,9 +3,9 @@
 namespace Kakaprodo\MessageBroker\Brokers\RabbitMq\Routing;
 
 use Closure;
-use Exception;
 use Kakaprodo\CustomData\Helpers\CustomActionBuilder;
 use Kakaprodo\MessageBroker\Brokers\RabbitMq\RabbitMqService;
+use Kakaprodo\MessageBroker\Exceptions\MessageBrokerException;
 
 class Route
 {
@@ -22,8 +22,9 @@ class Route
 
     public function __construct()
     {
-        $index = count(RouteBuilder::$allRoutes) - 1;
-        $this->index = $index < 0 ? 0 : $index;
+        array_push(RouteBuilder::$allRoutes, []);
+
+        $this->index = count(RouteBuilder::$allRoutes) - 1;
     }
 
     /**
@@ -77,20 +78,6 @@ class Route
     {
         $this->settings = array_merge(($this->settings), [
             'exchange_type' =>  RabbitMqService::EXCHANGE_TYPE_TOPIC
-        ]);
-
-        $this->updateGlobalRoutes();
-
-        return $this;
-    }
-
-    /**
-     * Configure the route to listen to any topic message
-     */
-    public function headers()
-    {
-        $this->settings = array_merge(($this->settings), [
-            'exchange_type' =>  RabbitMqService::EXCHANGE_TYPE_HEADERS
         ]);
 
         $this->updateGlobalRoutes();
@@ -161,7 +148,7 @@ class Route
     {
         foreach ($routingKeysMapWithHandlers as $routingKey => $handler) {
             if (!$handler) {
-                throw  new Exception("The routingKey($routingKey) provided with no handler.");
+                throw  new MessageBrokerException("The routingKey($routingKey) provided with no handler.");
             }
 
             static::listenTo($routingKey,  $handler);

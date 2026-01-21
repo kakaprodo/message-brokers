@@ -40,7 +40,7 @@ class MessageBrokerConsumeMessage extends Command
      */
     public function handle()
     {
-        MessageBroker::listenToMessages();
+        MessageBroker::listenToMessages($this);
 
         return 0;
     }

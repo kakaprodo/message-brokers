@@ -2,9 +2,12 @@
 
 return [
     /**
-     * This should be any class that has a handle method.
+     * This should be any class that has a "handle" method.
      * When an error occurs, the package will inject the 
-     * exception in the handle method
+     * exception in the handle method.
+     * 
+     * Note: you should not throw an exception in its handle method.
+     *       otherwise the rabbitmq connection will be lost.
      */
     'error_listner_class' => null,
 

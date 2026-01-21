@@ -2,6 +2,8 @@
 
 namespace Kakaprodo\MessageBroker\Utilities;
 
+use Throwable;
+
 class Util
 {
 
@@ -23,5 +25,21 @@ class Util
         if (static::isCallable($myFunction)) return $myFunction(...$args);
 
         return $myFunction;
+    }
+
+    /**
+     * catch any error then send it its handler class
+     */
+    public static function catch(Throwable $th)
+    {
+        $errorHandlerClass = config('message-broker.error_listner_class');
+
+        if (!$errorHandlerClass) return;
+
+        if (!class_exists($errorHandlerClass)) return;
+
+        if (!method_exists($errorHandlerClass, 'handle')) return;
+
+        app($errorHandlerClass)->handle($th);
     }
 }

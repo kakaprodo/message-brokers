@@ -2,6 +2,7 @@
 <?php
 
 use Kakaprodo\MessageBroker\Brokers\RabbitMq\Routing\Route;
+use Kakaprodo\MessageBroker\Brokers\RabbitMq\Data\MessageData;
 
 /*
 |--------------------------------------------------------------------------
@@ -14,33 +15,38 @@ use Kakaprodo\MessageBroker\Brokers\RabbitMq\Routing\Route;
 | custom data.
 | 
 | Examples:
-|   - Route::make()->any()->subscribe('exchange-name', function ($payload) { ... });
+|   - Route::make()->any()->subscribe('exchange-name', function (MessageData $dataMessage) { ... });
 |   - Route::make()->subscribe('exchange-name')->listenTo('routing-key', HandlerClass::class);
 |   - Route::make()->subscribe('exchange-name')->listenToMany([
-|       'key1' => function($payload) { ... },
+|       'key1' => function(MessageData $dataMessage) { ... },
 |       'key2' => HandlerClass::class,
 |   ]);
 |
 | These routes define how messages are processed when published to RabbitMQ.
 |
+| Publishing message:
+| Kakaprodo\MessageBroker\Facades\MessageBroker::sendTo("order-lifecycle", ['message' => "order paid "], "paid")
+| Kakaprodo\MessageBroker\Facades\MessageBroker::broadcast("hello-world", ['message' => "it's a new day "])
 */
 
 
-Route::make()->any()->subscribe('hello-world', function ($payload) {
-    dump($payload);
+Route::make()->any()->subscribe('hello-world', function (MessageData $dataMessage) {
+    dump($dataMessage->payload, $dataMessage->getRawPayload());
 });
 
-Route::make()->subscribe('order-lifecycle')->listenToMany([
-    'created' => function ($payload) {
-        dump($payload);
-    },
-    'paid' => MyOrderPaidAction::class, // can also be a custom-data action class
-]);
+Route::make()
+    ->subscribe('order-lifecycle')
+    ->listenToMany([
+        'created' => function (MessageData $dataMessage) {
+            dump($dataMessage->payload);
+        },
+        'paid' => MyOrderPaidAction::class, // can also be a custom-data action class
+    ]);
 
 class MyOrderPaidAction
 {
-    public function handle($payload)
+    public function handle(MessageData $dataMessage)
     {
-        dump($payload);
+        dump($dataMessage->payload);
     }
 }

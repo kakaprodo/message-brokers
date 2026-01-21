@@ -2,8 +2,10 @@
 
 namespace Kakaprodo\MessageBroker\Brokers\RabbitMq\Routing;
 
-use Illuminate\Support\Facades\Log;
+use Illuminate\Console\Command;
 use Kakaprodo\MessageBroker\Brokers\RabbitMq\RabbitMqService;
+use Kakaprodo\MessageBroker\Exceptions\MessageBrokerException;
+use Kakaprodo\MessageBroker\Utilities\Util;
 
 class RouteBuilder
 {
@@ -24,23 +26,14 @@ class RouteBuilder
     /**
      * Connect routes to rabbitMq
      */
-    public static function resolveRoutes()
+    public static function resolveRoutes(Command $command)
     {
-        $service = null;
-
-        try {
-            $service = RabbitMqService::init();
-        } catch (\Throwable $th) {
-            // TODO:: log error
-            Log::info('Rabbitmq connection: ' . $th->getMessage());
-        }
-
-        if (!($service instanceof RabbitMqService)) return;
+        $service = RabbitMqService::init();
 
         static::loadRoutes();
-        dd(static::$allRoutes);
+
         try {
-            $service->listen(function (RabbitMqService $mqService) {
+            $service?->listen(function (RabbitMqService $mqService) {
                 foreach (static::$allRoutes as $routeSettings) {
                     [$exchangeName, $handler] = $routeSettings['exchange_name'];
 
@@ -51,13 +44,18 @@ class RouteBuilder
                     if ($exchangeType === RabbitMqService::EXCHANGE_TYPE_FANOUT) {
                         $mqService->listenToBroadcast($handler);
                     } else {
-                        $mqService->listenToDirect($routeSettings['routing_keys']);
+                        $routingKeys = $routeSettings['routing_keys'];
+                        if (empty($routingKeys)) {
+                            throw  new MessageBrokerException("The {$exchangeType} {$exchangeName} exchange misses the routing keys.");
+                        }
+
+                        $mqService->listenToDirect($exchangeType, $routeSettings['routing_keys']);
                     }
                 }
             });
         } catch (\Throwable $th) {
-            // TODO:: log error
-            Log::info('Rabbitmq Listener cmd: ' . $th->getMessage());
+            $command->error('Rabbitmq listener: ' . $th->getMessage());
+            Util::catch($th);
         }
     }
 }

@@ -7,20 +7,21 @@ use Kakaprodo\CustomData\CustomData;
 use Kakaprodo\CustomData\Helpers\CustomActionBuilder;
 
 /**
- * @property array $payload 
- * @property string|null routing_key 
+ * @property string $message : encoded version of published message
+ * @property array $payload : decoded version of the message  sent
+ * @property string|null $routing_key 
+ * @property string|null $exchange 
  * @property Closure|CustomActionBuilder|null $handler 
  */
-class DispatchRabbitMqTaskData extends CustomData
+class MessageData extends CustomData
 {
     protected function expectedProperties(): array
     {
         return [
-            'message' => $this->property()
-                ->string()
-                ->castTo(fn($value) => json_decode($value, true))
-                ->transform('payload'),
+            'message' => $this->property()->string(),
+            'payload?' => $this->property()->castTo(fn() => json_decode($this->message, true)),
             'routing_key?' => $this->dataType()->string(),
+            'exchange?' => $this->dataType()->string(),
             'handler?',
         ];
     }
@@ -50,12 +51,11 @@ class DispatchRabbitMqTaskData extends CustomData
         return method_exists($handler, 'handle');
     }
 
-    public function getMessagePayload(): array
+    /**
+     * Get  payload in encoded format
+     */
+    public function getRawPayload(): string
     {
-        return array_merge([
-            $this->payload
-        ], [
-            'routing_key' => $this->routing_key
-        ]);
+        return $this->message;
     }
 }

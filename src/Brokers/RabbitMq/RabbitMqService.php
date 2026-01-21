@@ -2,8 +2,8 @@
 
 namespace Kakaprodo\MessageBroker\Brokers\RabbitMq;
 
+use Closure;
 use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Log;
 use PhpAmqpLib\Channel\AMQPChannel;
 use PhpAmqpLib\Message\AMQPMessage;
 use Kakaprodo\MessageBroker\Utilities\Util;
@@ -48,6 +48,17 @@ class RabbitMqService
     public static function init(): RabbitMqService
     {
         return new self();
+    }
+
+    /**
+     * Decide whether a connection should be closed once a message is 
+     * sent
+     */
+    public function shouldCloseConnection($decision = true)
+    {
+        $this->mqCoreService->setShouldCloseConnection($decision);
+
+        return $this;
     }
 
     /**
@@ -154,11 +165,14 @@ class RabbitMqService
             false,
             false,
             function (AMQPMessage $msg) use ($handler) {
-                if ($handler) {
-                    $this->dispatchTasks($msg->getBody(), $handler);
-                }
-
-                $msg->ack();
+                $this->executeHandlerWithTryCatch(
+                    fn() => $this->dispatchTasks(
+                        message: $msg->getBody(),
+                        handler: $handler,
+                        exchange: $msg->getExchange()
+                    ),
+                    $msg
+                );
             }
         );
 
@@ -168,12 +182,13 @@ class RabbitMqService
 
     /**
      * listen to messages published to certain routing keys only
+     * 
+     * @param string $exchangeType : can be direct or topic
+     * @param array<routingKey, handler> $routingKeysMappedWithHandler
      */
-    public function listenToDirect($routingKeysMappedWithHandler = [])
+    public function listenToDirect(string $exchangeType, array $routingKeysMappedWithHandler)
     {
-        $this->channel->exchange_declare($this->exchangeName, 'direct', false, true, false);
-
-
+        $this->channel->exchange_declare($this->exchangeName, $exchangeType, false, true, false);
 
         foreach ($routingKeysMappedWithHandler as $routingKey => $handler) {
             [$queueName] = $this->channel->queue_declare(
@@ -196,15 +211,44 @@ class RabbitMqService
                 false,
                 false,
                 function (AMQPMessage $msg) use ($handler) {
-
-                    $this->dispatchTasks($msg->getBody(), $handler, $msg->getRoutingKey());
-
-                    $msg->ack();
+                    $this->executeHandlerWithTryCatch(
+                        fn() => $this->dispatchTasks(
+                            message: $msg->getBody(),
+                            handler: $handler,
+                            routingKey: $msg->getRoutingKey(),
+                            exchange: $msg->getExchange(),
+                        ),
+                        $msg
+                    );
                 }
             );
         }
 
         return $this;
+    }
+
+    /**
+     * execute the handler and only aknowledge message 
+     * if handler did not fail
+     */
+    protected function executeHandlerWithTryCatch(Closure $executeMe, AMQPMessage $msg)
+    {
+        try {
+            $executeMe();
+            $msg->ack();
+        } catch (\Throwable $th) {
+            $info = [
+                'error_message' => $th->getMessage(),
+                'sent_message' => $msg->getBody(),
+                'routing_key' => $msg->getRoutingKey(),
+                "exchange" =>  $msg->getExchange(),
+            ];
+            Util::catch($th);
+
+            dump($info);
+
+            // TODO: call the configured error handler class
+        }
     }
 
     /**
@@ -214,27 +258,13 @@ class RabbitMqService
      * @param Closure|CustomActionBuilder|null $handler 
      * @param string|null $routingKey
      */
-    protected function dispatchTasks($message, $handler = null, $routingKey = null)
+    protected function dispatchTasks($message, $handler = null, $routingKey = null, $exchange = null)
     {
-        try {
-            DispatchRabbitMqTaskService::process([
-                'message' => $message,
-                'routing_key' => $routingKey,
-                'handler' => $handler
-            ]);
-        } catch (\Throwable $th) {
-            Log::info($th->getMessage());
-            Log::info(json_encode([
-                'message' => $message,
-                'routing_key' => $routingKey
-            ]));
-
-            dump($th->getMessage(), [
-                'message' => $message,
-                'routing_key' => $routingKey
-            ]);
-
-            // TODO: call the configured error handler class
-        }
+        DispatchRabbitMqTaskService::process([
+            'message' => $message,
+            'routing_key' => $routingKey,
+            'handler' => $handler,
+            'exchange' => $exchange
+        ]);
     }
 }
