@@ -2,6 +2,17 @@
 
 A PHP and Laravel package that simplifies server-to-server communication using RabbitMQ.
 
+## Prerequisites
+
+Before installing make sure you support:
+
+```
+"php": ">=8.0",
+"laravel/framework": ">=8.0",
+"kakaprodo/custom-data": ">=2.3.3 || dev-develop",
+"php-amqplib/php-amqplib": "^3.7"
+```
+
 ## Installation
 
 Run the following composer command:
