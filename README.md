@@ -34,7 +34,7 @@ We assume that you have RabbitMQ installed on your computer.
 Run the following Composer command:
 
 ```bash
-composer require kakaprodo/message-broker
+composer require kakaprodo/laravel-message-broker
 ```
 
 ## Setup
@@ -228,8 +228,6 @@ The package supports three types of handlers:
         ->subscribe($exchangeName)
         ->listenTo($routingKey, MyOrderPaidAction::class);
     ```
-
-## Consuming Messages
 
 ## Consuming Messages
 
