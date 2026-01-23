@@ -1,6 +1,18 @@
-# Message Brokers
+# Laravel Message Brokers
 
-A PHP and Laravel package that simplifies server-to-server communication using RabbitMQ.
+A RabbitMQ message broker for Laravel that provides clean routing, similar to Laravel's route system, for sending and consuming messages.
+
+```php
+// Subscribe: in routes/message-broker.php
+Route::make()
+    ->subscribe($exchangeName)
+    ->listenTo($routingKey, function (MessageData $dataMessage) {
+        dump($dataMessage->payload);
+    });
+
+//Publish: from any file
+MessageBroker::sendTo($exchangeName, $payloadMessage, $routingKey);
+```
 
 ## Prerequisites
 
@@ -14,6 +26,8 @@ Before installing, ensure your project meets the following requirements:
     "php-amqplib/php-amqplib": "^3.7"
 }
 ```
+
+We assume that you have RabbitMQ installed on your computer.
 
 ## Installation
 
@@ -214,3 +228,19 @@ The package supports three types of handlers:
         ->subscribe($exchangeName)
         ->listenTo($routingKey, MyOrderPaidAction::class);
     ```
+
+## Consuming Messages
+
+## Consuming Messages
+
+After defining your subscription routes, you can start processing published messages using the following Artisan command:
+
+```bash
+php artisan message-broker:consume
+```
+
+If there are any messages that are stuck and you want to acknowledge them so they are not repeatedly pulled, use the `--ack` flag:
+
+```bash
+php artisan message-broker:consume --ack
+```

@@ -1,6 +1,6 @@
 {
-    "name": "kakaprodo/message-broker",
-    "description": "A php and laravel package that simplifies rabbitmq, kafka api integration.",
+    "name": "kakaprodo/laravel-message-broker",
+    "description": "A RabbitMQ message broker for Laravel that provides clean routing, similar to Laravel's route system, for sending and consuming messages.",
     "type": "library",
     "keywords": [
         "laravel message broker",
