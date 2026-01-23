@@ -24,13 +24,21 @@ class RouteBuilder
     }
 
     /**
-     * Connect routes to rabbitMq
+     * Load and connect routes to rabbitMq, 
+     * This will be called only in a console
      */
     public static function resolveRoutes(Command $command)
     {
         $service = RabbitMqService::init();
 
         static::loadRoutes();
+
+        $shouldKeepConnectionAlive = true;
+
+        if ($command->option('ack')) {
+            $service->shouldAcknowledgeBeforeHandler();
+            $shouldKeepConnectionAlive = false;
+        }
 
         try {
             $service?->listen(function (RabbitMqService $mqService) {
@@ -52,7 +60,7 @@ class RouteBuilder
                         $mqService->listenToDirect($exchangeType, $routeSettings['routing_keys']);
                     }
                 }
-            });
+            }, $shouldKeepConnectionAlive);
         } catch (\Throwable $th) {
             $command->error('Rabbitmq listener: ' . $th->getMessage());
             Util::catch($th, [

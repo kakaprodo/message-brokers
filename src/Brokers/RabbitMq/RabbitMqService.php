@@ -26,6 +26,11 @@ class RabbitMqService
     protected $exchangeName;
 
     /**
+     * Wether acknowlegment should executed before handlers
+     */
+    protected $acknowledgeBeforeHandler = false;
+
+    /**
      * Supported exchange types
      */
     const EXCHANGE_TYPE_DIRECT = "direct";
@@ -57,6 +62,16 @@ class RabbitMqService
     public function shouldCloseConnection($decision = true)
     {
         $this->mqCoreService->setShouldCloseConnection($decision);
+
+        return $this;
+    }
+
+    /**
+     * acknowlegment rabbitmq message before executing handlers
+     */
+    public function shouldAcknowledgeBeforeHandler($decision = true)
+    {
+        $this->acknowledgeBeforeHandler = $decision;
 
         return $this;
     }
@@ -121,15 +136,19 @@ class RabbitMqService
      * listen to multiple routes and exchange types using
      * one channel and one connection
      */
-    public function listen(callable $builderCallable)
+    public function listen(callable $builderCallable, $shouldKeepConnectionAlive = true)
     {
         // Manage load-balance: breadcast up to 10 messages, and keep doing it if the FIFO got achnowledged
         $this->channel->basic_qos(null, 10, null);
 
         $builderCallable($this);
 
-        while ($this->channel->is_open()) {
-            $this->channel->wait();
+        if ($shouldKeepConnectionAlive) {
+            while ($this->channel->is_open()) {
+                $this->channel->wait();
+            }
+        } else {
+            $this->channel->wait(null, false, 1);
         }
 
         $this->channel->close();
@@ -234,8 +253,11 @@ class RabbitMqService
     protected function executeHandlerWithTryCatch(Closure $executeMe, AMQPMessage $msg)
     {
         try {
+            if ($this->acknowledgeBeforeHandler)  $msg->ack();
+
             $executeMe();
-            $msg->ack();
+
+            if (!$this->acknowledgeBeforeHandler)  $msg->ack();
         } catch (\Throwable $th) {
             $info = [
                 'error_message' => $th->getMessage(),
@@ -245,10 +267,6 @@ class RabbitMqService
                 "event" => "When executing the handler"
             ];
             Util::catch($th, $info);
-
-            dump($info);
-
-            // TODO: call the configured error handler class
         }
     }
 

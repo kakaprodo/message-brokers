@@ -12,7 +12,7 @@ class MessageBrokerConsumeMessage extends Command
      *
      * @var string
      */
-    protected $signature = 'message-broker:consume';
+    protected $signature = 'message-broker:consume {--ack : Automatically acknowledge all stucked messages}';
 
     /**
      * The console command description.

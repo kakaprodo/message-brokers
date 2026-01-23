@@ -119,7 +119,7 @@ class Route
     }
 
     /**
-     * Bind a handler to process messages matching the given routing key.
+     * Bind a single routing key to a subscription exchange.
      * 
      * @param string $routingKey
      * @param Closure|array|CustomActionBuilder $handler 
@@ -140,7 +140,7 @@ class Route
     }
 
     /**
-     * Bind a handler to process messages matching the given routing key.
+     * Bind many routing keys to a subscription exchange.
      * 
      * @param array<string, Closure|array|CustomActionBuilder $handler> $routingKeysMapWithHandlers
      */

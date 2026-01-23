@@ -35,6 +35,12 @@ Route::make()->any()->subscribe('hello-world', function (MessageData $dataMessag
 });
 
 Route::make()
+    ->subscribe('user-lifecycle')
+    ->listenTo('user.created', function (MessageData $dataMessage) {
+        dump($dataMessage->payload);
+    });
+
+Route::make()
     ->subscribe('order-lifecycle')
     ->listenToMany([
         'created' => function (MessageData $dataMessage) {
