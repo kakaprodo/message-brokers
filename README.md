@@ -1,46 +1,50 @@
-# Message-brokers
+# Message Brokers
 
 A PHP and Laravel package that simplifies server-to-server communication using RabbitMQ.
 
 ## Prerequisites
 
-Before installing make sure you support:
+Before installing, ensure your project meets the following requirements:
 
-```
-"php": ">=8.0",
-"laravel/framework": ">=8.0",
-"kakaprodo/custom-data": ">=2.3.3 || dev-develop",
-"php-amqplib/php-amqplib": "^3.7"
+```json
+{
+    "php": ">=8.0",
+    "laravel/framework": ">=8.0",
+    "kakaprodo/custom-data": ">=2.3.3 || dev-develop",
+    "php-amqplib/php-amqplib": "^3.7"
+}
 ```
 
 ## Installation
 
-Run the following composer command:
+Run the following Composer command:
 
-```sh
+```bash
 composer require kakaprodo/message-broker
 ```
 
 ## Setup
 
-### 1. Publishing files
+### 1. Publish Package Files
 
-Before start using the package, you should publish some files it provides by running
-the following artisan command:
+Before using the package, publish its configuration and route files:
 
-```sh
+```bash
 php artisan message-broker:install
 ```
 
-This command will publish the `config/message-broker.php` and the `routes/message-broker.php` files
+This will publish:
 
-### 2. Provide env variables
+- `config/message-broker.php`
+- `routes/message-broker.php`
 
-Provide in your `.env` file the following RabbitMq keys for connection:
+### 2. Configure Environment Variables
+
+Add the following RabbitMQ connection settings to your `.env` file:
 
 ```env
 RABBITMQ_HOST=localhost
-RABBITMQ_POSRT=5672
+RABBITMQ_PORT=5672
 RABBITMQ_USERNAME=
 RABBITMQ_PASSWORD=
 RABBITMQ_VHOST='/'
@@ -50,76 +54,73 @@ RABBITMQ_VHOST='/'
 
 ### Sending Messages
 
-You can publish a message to one specific subscriber or you can broadcast to many subscribers.
+You can send messages to a specific subscriber or broadcast to multiple subscribers.
 
-#### Send direct message
+#### Send Direct Message
 
-To send a message to one specific subscriber use the `sendTo` method, by passing to it, the `exchange_name`, `payload_message`, and the `routing_key`.
+Use the `sendTo` method to send a message to a specific subscriber by providing the `exchange_name`, `payload_message`, and `routing_key`.
 
 ```php
 use Kakaprodo\MessageBroker\Facades\MessageBroker;
 
 $exchangeName = "order-lifecycle";
-$payloadMessage = [
-    'message' => "order created"
-];
+$payloadMessage = ['message' => "order created"];
 $routingKey = "created";
 
 MessageBroker::sendTo($exchangeName, $payloadMessage, $routingKey);
 ```
 
-#### broadcast message
+#### Broadcast Message
 
-To send a message to many subscribers use the `broadcast` method, by passing to it the `exchange_name` and the `payload_message`.
+Use the `broadcast` method to send a message to all subscribers of an exchange.
 
 ```php
 use Kakaprodo\MessageBroker\Facades\MessageBroker;
 
 $exchangeName = "hello-world";
-$payloadMessage = [
-    'message' => "It's a new day"
-];
+$payloadMessage = ['message' => "It's a new day"];
 
 MessageBroker::broadcast($exchangeName, $payloadMessage);
 ```
 
-### Subscribing to exchange
+### Subscribing to Exchanges
 
-You can subscribe to broadcasted(`fanout`) messages, to `direct` message and to `topic` messages.
-To define the route, open the `routes/message-broker.php` then define you route the following way:
+You can subscribe to `fanout` (broadcast), `direct`, and `topic` messages. Define routes in `routes/message-broker.php`.
 
-**Brodcasted Messages**
+#### Broadcasted Messages
 
-To subscribe to brodcasted message you can use `any` when defining the route exchange.
-Then provide the `exchange_name` and its callback to the `subscribe` method.
+Subscribe to broadcast messages using `any`:
 
 ```php
-    use Kakaprodo\MessageBroker\Brokers\RabbitMq\Data\MessageData;
+use Kakaprodo\MessageBroker\Brokers\RabbitMq\Routing\Route;
+use Kakaprodo\MessageBroker\Brokers\RabbitMq\Data\MessageData;
 
-    $exchangeName = "hello-world";
+$exchangeName = "hello-world";
 
-    Route::make()->any()->subscribe($exchangeName, function (MessageData $dataMessage) {
-      dump($dataMessage->payload, $dataMessage->getRawPayload());
+Route::make()->any()->subscribe($exchangeName, function (MessageData $dataMessage) {
+    dump($dataMessage->payload, $dataMessage->getRawPayload());
+});
+```
+
+#### Direct Messages
+
+Subscribe to a direct message by specifying the `exchange_name` and `routing_key`:
+
+```php
+use Kakaprodo\MessageBroker\Brokers\RabbitMq\Routing\Route;
+use Kakaprodo\MessageBroker\Brokers\RabbitMq\Data\MessageData;
+
+$exchangeName = 'order-lifecycle';
+$routingKey = "created";
+
+Route::make()
+    ->subscribe($exchangeName)
+    ->listenTo($routingKey, function (MessageData $dataMessage) {
+        dump($dataMessage->payload);
     });
 ```
 
-**Direct Messages**
-
-To subscribe to direct message simply pass to the `subscribe` method, the `exchange_name` and the callback of its routing key.
-
-```php
-    use Kakaprodo\MessageBroker\Brokers\RabbitMq\Data\MessageData;
-
-    $exchangeName = 'order-lifecycle';
-    $routingKey = "created";
-    Route::make()
-        ->subscribe($exchangeName)
-        ->listenTo($routingKey, function (MessageData $dataMessage) {
-            dump($dataMessage->payload);
-        });
-```
-
-You may also bound many routing keys to a single exchange name by using the `listenToMany` method:
+Subscribe to multiple routing keys:
 
 ```php
 Route::make()
@@ -128,26 +129,30 @@ Route::make()
         'created' => function (MessageData $dataMessage) {
             dump($dataMessage->payload);
         },
-        'paid' => MyOrderPaidAction::class, // can also be a custom-data action class
+        'paid' => MyOrderPaidAction::class,
     ]);
 ```
 
-**Topic Messages**
+#### Topic Messages
+
+Subscribe to topic messages by specifying the topic exchange and routing key:
 
 ```php
+use Kakaprodo\MessageBroker\Brokers\RabbitMq\Routing\Route;
+
 Route::make()
-    ->tipic()
+    ->topic()
     ->subscribe($topicExchange)
     ->listenTo($topicRoutingKey, function (MessageData $dataMessage) {
         dump($dataMessage->payload);
     });
 ```
 
-### Messages handlers
+### Message Handlers
 
-The package support 3 types of handlers:
+The package supports three types of handlers:
 
-- Closure handler
+1. **Closure Handler**
 
     ```php
     $handler = function (MessageData $dataMessage) {
@@ -155,13 +160,13 @@ The package support 3 types of handlers:
     };
 
     Route::make()
-            ->subscribe($exchangeName)
-            ->listenTo($routingKey, $handler);
+        ->subscribe($exchangeName)
+        ->listenTo($routingKey, $handler);
     ```
 
-- Php Action Classes
+2. **PHP Action Classes**
 
-    The action should have a `handle` method
+    The class should have a `handle` method:
 
     ```php
     use Kakaprodo\MessageBroker\Brokers\RabbitMq\Data\MessageData;
@@ -175,11 +180,11 @@ The package support 3 types of handlers:
     }
 
     Route::make()
-            ->subscribe($exchangeName)
-            ->listenTo($routingKey, MyOrderPaidAction::class);
+        ->subscribe($exchangeName)
+        ->listenTo($routingKey, MyOrderPaidAction::class);
     ```
 
-- Action classes from the `kakaprodo/custom-data`
+3. **Custom Data Action Classes (`kakaprodo/custom-data`)**
 
     ```php
     use Kakaprodo\CustomData\CustomData;
@@ -206,6 +211,6 @@ The package support 3 types of handlers:
     }
 
     Route::make()
-            ->subscribe($exchangeName)
-            ->listenTo($routingKey, MyOrderPaidAction::class);
+        ->subscribe($exchangeName)
+        ->listenTo($routingKey, MyOrderPaidAction::class);
     ```
