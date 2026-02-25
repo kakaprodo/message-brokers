@@ -4,10 +4,11 @@ namespace Kakaprodo\MessageBroker\Brokers\RabbitMq;
 
 use Closure;
 use Illuminate\Support\Str;
+use Kakaprodo\CustomData\Helpers\CustomActionBuilder;
+use Kakaprodo\MessageBroker\Brokers\RabbitMq\Core\RabbitMqServiceCore;
+use Kakaprodo\MessageBroker\Utilities\Util;
 use PhpAmqpLib\Channel\AMQPChannel;
 use PhpAmqpLib\Message\AMQPMessage;
-use Kakaprodo\MessageBroker\Utilities\Util;
-use Kakaprodo\MessageBroker\Brokers\RabbitMq\Core\RabbitMqServiceCore;
 
 class RabbitMqService
 {
@@ -92,7 +93,7 @@ class RabbitMqService
     public function generateQueueName($exchangeType)
     {
         $appendToQueue = config('message-broker.append_to_queue_names');
-        $appendToQueue = $appendToQueue ? '.' . $appendToQueue : '';
+        $appendToQueue = ($appendToQueue ? '.' . $appendToQueue : '') . '-' . Str::random(10);
 
         return $this->exchangeName . '.' . $exchangeType . '.' . (Str::slug(config('app.name'))) . $appendToQueue;
     }

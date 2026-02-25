@@ -1,6 +1,18 @@
 <?php
 
 return [
+
+    /**
+     * Use as the message's origin identifier 
+     */
+    'app_name' => env('APP_NAME'),
+
+    /**
+     * the command to listen to all messages that are being
+     * published
+     */
+    'listner_command' => 'message-broker:consume',
+
     /**
      * This should be any class that has a "handle" method.
      * When an error occurs, the package will inject the 
@@ -35,7 +47,9 @@ return [
         'port' => env('RABBITMQ_POSRT', '5672'),
         'username' => env('RABBITMQ_USERNAME'),
         'password' => env('RABBITMQ_PASSWORD'),
-        'vhost' => env('RABBITMQ_VHOST', '/')
+        'vhost' => env('RABBITMQ_VHOST', '/'),
+        'heartbeat' => env('RABBITMQ_HEARTBEAT', 0),
+        'read_write_timeout' =>  env('RABBITMQ_READ_WRITE_TIMEOUT', 3.0),
     ],
 
 ];

@@ -11,6 +11,7 @@ use Kakaprodo\CustomData\Helpers\CustomActionBuilder;
  * @property array $payload : decoded version of the message  sent
  * @property string|null $routing_key 
  * @property string|null $exchange 
+ * @property string $message_broker_origin 
  * @property Closure|CustomActionBuilder|null $handler 
  */
 class MessageData extends CustomData
@@ -23,6 +24,7 @@ class MessageData extends CustomData
             'routing_key?' => $this->dataType()->string(),
             'exchange?' => $this->dataType()->string(),
             'handler?',
+            'message_broker_origin?'
         ];
     }
 
@@ -57,5 +59,13 @@ class MessageData extends CustomData
     public function getRawPayload(): string
     {
         return $this->message;
+    }
+
+    /**
+     * check if the current system is the bublisher
+     */
+    public function imThePublisher()
+    {
+        return $this->message_broker_origin == config('message-broker.app_name');
     }
 }
