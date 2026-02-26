@@ -29,7 +29,7 @@ class MessageBrokerServiceProvider extends ServiceProvider
      */
     public function boot()
     {
-        $this->app->singleton('messagebroker', function () {
+        $this->app->singleton(MessageBroker::class, function () {
             return new MessageBroker();
         });
 

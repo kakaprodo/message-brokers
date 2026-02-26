@@ -34,7 +34,7 @@ class MessageBroker
     {
         return $this->rabbitMqService
             ->setExchangeName($exchangeName)
-            ->sendBroadcast(json_encode($messagePayload));
+            ->sendBroadcast($this->appendToPayloadThenFormat($messagePayload));
     }
 
     /**
@@ -47,6 +47,14 @@ class MessageBroker
     ) {
         return $this->rabbitMqService
             ->setExchangeName($exchangeName)
-            ->sendDirect(json_encode($messagePayload), $routingKey);
+            ->sendDirect($this->appendToPayloadThenFormat($messagePayload), $routingKey);
+    }
+
+    private function appendToPayloadThenFormat(array $messagePayload = [])
+    {
+        return json_encode([
+            ...($messagePayload),
+            'message_broker_origin' => config('message-broker.app_name')
+        ]);
     }
 }

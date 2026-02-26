@@ -29,7 +29,8 @@ class RabbitMqServiceCore
             user: config('message-broker.rabbitmq.username'),
             password: config('message-broker.rabbitmq.password'),
             vhost: $vHost,
-            // heartbeat: config('services.rabbitmq.heartbeat', 10),
+            read_write_timeout: config('message-broker.rabbitmq.read_write_timeout', 3.0),
+            heartbeat: config('message-broker.rabbitmq.heartbeat', 0),
         );
     }
 

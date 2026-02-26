@@ -30,6 +30,12 @@ class MessageBrokerConsumeMessage extends Command
      */
     public function __construct()
     {
+        $this->signature = str_replace(
+            "message-broker:consume",
+            config('message-broker.listner_command'),
+            $this->signature
+        );
+
         parent::__construct();
     }
 
