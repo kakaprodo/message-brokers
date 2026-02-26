@@ -93,7 +93,7 @@ class RabbitMqService
     public function generateQueueName($exchangeType)
     {
         $appendToQueue = config('message-broker.append_to_queue_names');
-        $appendToQueue = ($appendToQueue ? '.' . $appendToQueue : '') . '-' . Str::random(10);
+        $appendToQueue = $appendToQueue ? '.' . $appendToQueue : '';
 
         return $this->exchangeName . '.' . $exchangeType . '.' . (Str::slug(config('app.name'))) . $appendToQueue;
     }
