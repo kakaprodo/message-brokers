@@ -12,8 +12,6 @@ class MessageBroker
 
     public function __construct()
     {
-        config(['message-broker.heartbeat' => 0]);
-
         $this->rabbitMqService =  RabbitMqService::init();
         $this->rabbitMqService->shouldCloseConnection(false);
     }
